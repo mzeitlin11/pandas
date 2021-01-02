@@ -792,6 +792,28 @@ ctypedef fused rank_t:
     int64_t
 
 
+cdef rank_t get_nan_fill_value(bint rank_nans_highest, rank_t unused):
+    if rank_nans_highest:
+        if rank_t is object:
+            return Infinity()
+        elif rank_t is int64_t:
+            return np.iinfo(np.int64).max
+        elif rank_t is uint64_t:
+            return np.iinfo(np.uint64).max
+        else:
+            return np.inf
+
+    else:
+        if rank_t is object:
+            return NegInfinity()
+        elif rank_t is int64_t:
+            return np.iinfo(np.int64).min
+        elif rank_t is uint64_t:
+            return 0
+        else:
+            return -np.inf
+
+
 @cython.wraparound(False)
 @cython.boundscheck(False)
 def rank_1d(
@@ -836,7 +858,7 @@ def rank_1d(
         ndarray[float64_t, ndim=1] grp_sizes, out
         ndarray[rank_t, ndim=1] masked_vals
         ndarray[uint8_t, ndim=1] mask
-        bint keep_na, at_end, next_val_diff, check_labels
+        bint keep_na, at_end, next_val_diff, check_labels, rank_nans_highest
         rank_t nan_fill_val
 
     tiebreak = tiebreakers[ties_method]
@@ -847,6 +869,7 @@ def rank_1d(
     assert <Py_ssize_t>len(labels) == N
     out = np.empty(N)
     grp_sizes = np.ones(N)
+
     # If all 0 labels, can short-circuit later label
     # comparisons
     check_labels = np.any(labels)
@@ -868,26 +891,11 @@ def rank_1d(
     else:
         mask = np.zeros(shape=len(masked_vals), dtype=np.uint8)
 
-    if ascending ^ (na_option == 'top'):
-        if rank_t is object:
-            nan_fill_val = Infinity()
-        elif rank_t is int64_t:
-            nan_fill_val = np.iinfo(np.int64).max
-        elif rank_t is uint64_t:
-            nan_fill_val = np.iinfo(np.uint64).max
-        else:
-            nan_fill_val = np.inf
+    rank_nans_highest = ascending ^ (na_option == 'top')
+    nan_fill_val = get_nan_fill_value(rank_nans_highest, unused=masked_vals[0])
+    if rank_nans_highest:
         order = (masked_vals, mask, labels)
     else:
-        if rank_t is object:
-            nan_fill_val = NegInfinity()
-        elif rank_t is int64_t:
-            nan_fill_val = np.iinfo(np.int64).min
-        elif rank_t is uint64_t:
-            nan_fill_val = 0
-        else:
-            nan_fill_val = -np.inf
-
         order = (masked_vals, ~mask, labels)
 
     np.putmask(masked_vals, mask, nan_fill_val)
@@ -910,6 +918,7 @@ def rank_1d(
     if rank_t is object:
         for i in range(N):
             at_end = i == N - 1
+
             # dups and sum_ranks will be incremented each loop where
             # the value / group remains the same, and should be reset
             # when either of those change
@@ -997,6 +1006,7 @@ def rank_1d(
         with nogil:
             for i in range(N):
                 at_end = i == N - 1
+
                 # dups and sum_ranks will be incremented each loop where
                 # the value / group remains the same, and should be reset
                 # when either of those change
@@ -1090,12 +1100,12 @@ def rank_1d(
 
 
 def rank_2d(
-    ndarray[rank_t, ndim=2] in_arr,
+    ndarray[rank_t, ndim=2] values,
     int axis=0,
     ties_method="average",
     bint ascending=True,
-    na_option="keep",
     bint pct=False,
+    na_option="keep",
 ):
     """
     Fast NaN-friendly version of ``scipy.stats.rankdata``.
@@ -1104,60 +1114,45 @@ def rank_2d(
         Py_ssize_t i, j, z, k, n, dups = 0, total_tie_count = 0
         Py_ssize_t infs
         ndarray[float64_t, ndim=2] ranks
-        ndarray[rank_t, ndim=2] values
         ndarray[int64_t, ndim=2] argsorted
         ndarray[uint8_t, ndim=2] mask
-        rank_t val, nan_value
+        rank_t val, nan_fill_val
         float64_t count, sum_ranks = 0.0
         int tiebreak = 0
         int64_t idx
-        bint check_mask, condition, keep_na
+        bint nan_possible, condition, keep_na, rank_nans_highest
         const int64_t[:] labels
 
     tiebreak = tiebreakers[ties_method]
 
     keep_na = na_option == 'keep'
-    check_mask = rank_t is not uint64_t
+    nan_possible = rank_t is not uint64_t
 
     if axis == 0:
-        values = np.asarray(in_arr).T.copy()
+        values = values.T
+
+    if rank_t is object and values.dtype != np.object_:
+        values = values.astype('O')
     else:
-        values = np.asarray(in_arr).copy()
+        values = values.copy()
 
     if rank_t is object:
-        if values.dtype != np.object_:
-            values = values.astype('O')
-
-    if rank_t is not uint64_t:
-        if ascending ^ (na_option == 'top'):
-            if rank_t is object:
-                nan_value = Infinity()
-            elif rank_t is float64_t:
-                nan_value = np.inf
-            elif rank_t is int64_t:
-                nan_value = np.iinfo(np.int64).max
-
-        else:
-            if rank_t is object:
-                nan_value = NegInfinity()
-            elif rank_t is float64_t:
-                nan_value = -np.inf
-            elif rank_t is int64_t:
-                nan_value = NPY_NAT
-
-        if rank_t is object:
-            mask = missing.isnaobj2d(values)
-        elif rank_t is float64_t:
-            mask = np.isnan(values)
-        elif rank_t is int64_t:
-            mask = values == NPY_NAT
-
-        np.putmask(values, mask, nan_value)
+        mask = missing.isnaobj2d(values)
+    elif rank_t is float64_t:
+        mask = np.isnan(values)
+    elif rank_t is int64_t:
+        mask = values == NPY_NAT
     else:
         mask = np.zeros_like(values, dtype=bool)
 
+    rank_nans_highest = ascending ^ (na_option == 'top')
+    nan_fill_val = get_nan_fill_value(rank_nans_highest, unused=values[0, 0])
+    if nan_possible:
+        np.putmask(values, mask, nan_fill_val)
+
     n, k = (<object>values).shape
     ranks = np.empty((n, k), dtype='f8')
+
     # For compatibility when calling rank_1d
     labels = np.zeros(k, dtype=np.int64)
 
@@ -1165,10 +1160,9 @@ def rank_2d(
         try:
             _as = values.argsort(1)
         except TypeError:
-            values = in_arr
             for i in range(len(values)):
                 ranks[i] = rank_1d(
-                    in_arr[i],
+                    values[i],
                     labels=labels,
                     ties_method=ties_method,
                     ascending=ascending,
@@ -1201,7 +1195,7 @@ def rank_2d(
         for j in range(k):
             val = values[i, j]
             idx = argsorted[i, j]
-            if keep_na and check_mask and mask[i, idx]:
+            if keep_na and nan_possible and mask[i, idx]:
                 ranks[i, idx] = NaN
                 infs += 1
                 continue
@@ -1215,13 +1209,13 @@ def rank_2d(
                 condition = (
                     j == k - 1 or
                     are_diff(values[i, j + 1], val) or
-                    (keep_na and check_mask and mask[i, argsorted[i, j + 1]])
+                    (keep_na and nan_possible and mask[i, argsorted[i, j + 1]])
                 )
             else:
                 condition = (
                     j == k - 1 or
                     values[i, j + 1] != val or
-                    (keep_na and check_mask and mask[i, argsorted[i, j + 1]])
+                    (keep_na and nan_possible and mask[i, argsorted[i, j + 1]])
                 )
 
             if condition:
