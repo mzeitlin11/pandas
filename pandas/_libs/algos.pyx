@@ -866,6 +866,7 @@ def rank_1d(
 
     N = len(values)
     # TODO Cython 3.0: cast won't be necessary (#2992)
+    assert N > 0
     assert <Py_ssize_t>len(labels) == N
     out = np.empty(N)
     grp_sizes = np.ones(N)
@@ -1109,6 +1110,29 @@ def rank_2d(
 ):
     """
     Fast NaN-friendly version of ``scipy.stats.rankdata``.
+
+    Parameters
+    ----------
+    values : ndarray
+        2d array of rank_t values to be ranked
+    axis : {0, 1}, default 0
+        Axis to rank over
+    ties_method : {'average', 'min', 'max', 'first', 'dense'}, default
+        'average'
+        * average: average rank of group
+        * min: lowest rank in group
+        * max: highest rank in group
+        * first: ranks assigned in order they appear in the array
+        * dense: like 'min', but rank always increases by 1 between groups
+    ascending : boolean, default True
+        False for ranks by high (1) to low (N)
+        na_option : {'keep', 'top', 'bottom'}, default 'keep'
+    pct : boolean, default False
+        Compute percentage rank of data within each group
+    na_option : {'keep', 'top', 'bottom'}, default 'keep'
+        * keep: leave NA values where they are
+        * top: smallest rank if ascending
+        * bottom: smallest rank if descending
     """
     cdef:
         Py_ssize_t i, j, z, k, n, dups = 0, total_tie_count = 0
@@ -1136,6 +1160,14 @@ def rank_2d(
     else:
         values = values.copy()
 
+    n, k = (<object>values).shape
+    ranks = np.empty((n, k), dtype='f8')
+    if n == 0 or k == 0:
+        if axis == 0:
+            return ranks.T
+        else:
+            return ranks
+
     if rank_t is object:
         mask = missing.isnaobj2d(values)
     elif rank_t is float64_t:
@@ -1149,9 +1181,6 @@ def rank_2d(
     nan_fill_val = get_nan_fill_value(rank_nans_highest, unused=values[0, 0])
     if nan_possible:
         np.putmask(values, mask, nan_fill_val)
-
-    n, k = (<object>values).shape
-    ranks = np.empty((n, k), dtype='f8')
 
     # For compatibility when calling rank_1d
     labels = np.zeros(k, dtype=np.int64)
