@@ -445,10 +445,11 @@ class TestRank:
         result = df.rank()
         tm.assert_frame_equal(result, expected)
 
+    @pytest.mark.parametrize("data", [{}, {"a": [], "b": []}])
     @pytest.mark.parametrize("dtype", ["O", "f8", "i8"])
     @pytest.mark.parametrize("axis", [0, 1])
-    def test_rank_empty_frame(self, axis, dtype):
-        df = DataFrame({"a": [], "b": []}, dtype=dtype)
-        expected = DataFrame({"a": [], "b": []}, dtype="float")
+    def test_rank_empty_frame(self, data, dtype, axis):
+        df = DataFrame(data=data, dtype=dtype)
+        expected = DataFrame(data=data, dtype="float")
         result = df.rank(axis=axis)
         tm.assert_frame_equal(result, expected)

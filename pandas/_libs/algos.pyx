@@ -793,6 +793,19 @@ ctypedef fused rank_t:
 
 
 cdef rank_t get_nan_fill_value(bint rank_nans_highest, rank_t unused):
+    """
+    Return the fill value to use for missing values when sorting
+    in ranking algorithms.
+
+    Parameters
+    ----------
+    rank_nans_highest : boolean
+        Whether missing values should be filled such that
+        they rank as the largest or smallest values
+    unused : rank_t
+        Unused, Cython requires an argument with type rank_t
+        if rank_t will be used
+    """
     if rank_nans_highest:
         if rank_t is object:
             return Infinity()
@@ -801,6 +814,7 @@ cdef rank_t get_nan_fill_value(bint rank_nans_highest, rank_t unused):
         elif rank_t is uint64_t:
             return np.iinfo(np.uint64).max
         else:
+            print("im here")
             return np.inf
 
     else:
@@ -865,10 +879,13 @@ def rank_1d(
     keep_na = na_option == 'keep'
 
     N = len(values)
-    # TODO Cython 3.0: cast won't be necessary (#2992)
-    assert N > 0
-    assert <Py_ssize_t>len(labels) == N
     out = np.empty(N)
+    if N == 0:
+        return out
+
+    # TODO Cython 3.0: cast won't be necessary (#2992)
+    assert <Py_ssize_t>len(labels) == N
+
     grp_sizes = np.ones(N)
 
     # If all 0 labels, can short-circuit later label
@@ -1100,6 +1117,8 @@ def rank_1d(
     return out
 
 
+@cython.wraparound(False)
+@cython.boundscheck(False)
 def rank_2d(
     ndarray[rank_t, ndim=2] values,
     int axis=0,

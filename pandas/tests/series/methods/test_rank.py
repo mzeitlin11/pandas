@@ -561,3 +561,11 @@ def test_pct_max_many_rows():
     s = Series(np.arange(2 ** 24 + 1))
     result = s.rank(pct=True).max()
     assert result == 1
+
+
+@pytest.mark.parametrize("dtype", ["O", "f8", "i8"])
+def test_rank_empty(dtype):
+    ser = Series([], dtype=dtype)
+    expected = Series([], dtype="float")
+    result = ser.rank()
+    tm.assert_series_equal(result, expected)
