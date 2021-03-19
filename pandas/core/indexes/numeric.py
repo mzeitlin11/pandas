@@ -265,6 +265,8 @@ class Int64Index(IntegerIndex):
     _engine_type = libindex.Int64Engine
     _default_dtype = np.dtype(np.int64)
 
+    def take(self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs) -> Int64Index: ...
+
 
 _uint64_descr_args = {
     "klass": "UInt64Index",
@@ -295,6 +297,8 @@ class UInt64Index(IntegerIndex):
             dtype = np.dtype(np.uint64)
 
         return com.asarray_tuplesafe(keyarr, dtype=dtype)
+
+    def take(self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs) -> UInt64Index: ...
 
 
 _float64_descr_args = {
@@ -336,6 +340,8 @@ class Float64Index(NumericIndex):
             arr = astype_nansafe(self._values, dtype=dtype)  # type: ignore[arg-type]
             return Int64Index(arr, name=self.name)
         return super().astype(dtype, copy=copy)
+
+    def take(self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs) -> Float64Index: ...
 
     # ----------------------------------------------------------------
     # Indexing Methods

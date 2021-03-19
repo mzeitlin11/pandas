@@ -769,7 +769,7 @@ class SeriesGroupBy(GroupBy[Series]):
             lev = lab.cat.categories  # type: ignore[attr-defined]
             # error: No overload variant of "take" of "_ArrayOrScalarCommon" matches
             # argument types "Any", "bool", "Union[Any, float]"
-            lab = lev.take(  # type: ignore[call-overload]
+            lab = lev.take(  # type: ignore[call-overload, assignment]
                 # error: "ndarray" has no attribute "cat"
                 lab.cat.codes,  # type: ignore[attr-defined]
                 allow_fill=True,

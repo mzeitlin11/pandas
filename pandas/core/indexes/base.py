@@ -21,6 +21,7 @@ from typing import (
     TypeVar,
     Union,
     cast,
+    overload,
 )
 import warnings
 
@@ -886,7 +887,7 @@ class Index(IndexOpsMixin, PandasObject):
 
         Parameters
         ----------
-        indices : list
+        indices : array_like
             Indices to be taken.
         axis : int, optional
             The axis over which to select values, always 0.
@@ -897,8 +898,8 @@ class Index(IndexOpsMixin, PandasObject):
 
         Returns
         -------
-        numpy.ndarray
-            Elements of given indices.
+        Index
+            An index formed of elements at the given indices.
 
         See Also
         --------
@@ -907,16 +908,16 @@ class Index(IndexOpsMixin, PandasObject):
         """
 
     @Appender(_index_shared_docs["take"] % _index_doc_kwargs)
-    def take(self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs):
+    def take(self, indices: Union[ArrayLike, Sequence[int]], axis: int = 0, allow_fill: bool = True, fill_value=None, **kwargs) -> Index:
         if kwargs:
             nv.validate_take((), kwargs)
-        indices = ensure_platform_int(indices)
-        allow_fill = self._maybe_disallow_fill(allow_fill, fill_value, indices)
+        indices_as_array = ensure_platform_int(indices)
+        allow_fill = self._maybe_disallow_fill(allow_fill, fill_value, indices_as_array)
 
         # Note: we discard fill_value and use self._na_value, only relevant
         #  in the case where allow_fill is True and fill_value is not None
         taken = algos.take(
-            self._values, indices, allow_fill=allow_fill, fill_value=self._na_value
+            self._values, indices_as_array, allow_fill=allow_fill, fill_value=self._na_value
         )
         return type(self)._simple_new(taken, name=self.name)
 
@@ -3091,9 +3092,9 @@ class Index(IndexOpsMixin, PandasObject):
             indexer, _ = other.get_indexer_non_unique(lvals)
 
         mask = indexer != -1
-        indexer = indexer.take(mask.nonzero()[0])
-
-        result = other.take(indexer).unique()._values
+        # error: Incompatible types in assignment (expression has type
+        # "Union[ExtensionArray, ndarray]", variable has type "ndarray")
+        result = other.take(indexer.take(mask.nonzero()[0])).unique()._values  # type: ignore[assignment]
         result = _maybe_try_sort(result, sort)
 
         # Intersection has to be unique
@@ -3823,7 +3824,7 @@ class Index(IndexOpsMixin, PandasObject):
 
         indexer, missing = self.get_indexer_non_unique(target)
         check = indexer != -1
-        new_labels = self.take(indexer[check])
+        new_labels = np.asarray(self.take(indexer[check]))
         new_indexer = None
 
         if len(missing):

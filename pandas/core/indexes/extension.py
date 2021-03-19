@@ -45,6 +45,7 @@ from pandas.core.indexes.base import Index
 from pandas.core.ops import get_op_result_name
 
 _T = TypeVar("_T", bound="NDArrayBackedExtensionIndex")
+_ExtensionIndexT = TypeVar("_ExtensionIndexT", bound="ExtensionIndex")
 
 
 def inherit_from_data(name: str, delegate, cache: bool = False, wrap: bool = False):
@@ -353,6 +354,8 @@ class ExtensionIndex(Index):
             return False
 
         return self._data.equals(other._data)
+
+    def take(self: _ExtensionIndexT, indices, axis=0, allow_fill=True, fill_value=None, **kwargs) -> _ExtensionIndexT: ...
 
 
 class NDArrayBackedExtensionIndex(ExtensionIndex):

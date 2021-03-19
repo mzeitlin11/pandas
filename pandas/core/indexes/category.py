@@ -454,14 +454,11 @@ class CategoricalIndex(NDArrayBackedExtensionIndex, accessor.PandasDelegate):
         # coerce based on the actual values, only on the dtype)
         # unless we had an initial Categorical to begin with
         # in which case we are going to conform to the passed Categorical
-        new_target = np.asarray(new_target)
         if is_categorical_dtype(target):
-            new_target = Categorical(new_target, dtype=target.dtype)
-            new_target = type(self)._simple_new(new_target, name=self.name)
+            new_target_as_categorical = Categorical(np.asarray(new_target), dtype=target.dtype)
+            return type(self)._simple_new(new_target_as_categorical, name=self.name), indexer
         else:
-            new_target = Index(new_target, name=self.name)
-
-        return new_target, indexer
+            return Index(new_target, name=self.name), indexer
 
     def _reindex_non_unique(self, target):
         """
