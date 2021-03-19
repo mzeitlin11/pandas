@@ -3102,15 +3102,14 @@ class Index(IndexOpsMixin, PandasObject):
 
         mask = indexer != -1
         indexer = indexer.take(mask.nonzero()[0])
-        # error: Incompatible types in assignment (expression has type
-        # "Union[ExtensionArray, ndarray]", variable has type "ndarray")
-        result = other.take(indexer).unique()._values
-        result = _maybe_try_sort(result, sort)
+
+        result_as_index = other.take(indexer).unique()._values
+        result_as_index = _maybe_try_sort(result_as_index, sort)
 
         # Intersection has to be unique
-        assert Index(result).is_unique
+        assert Index(result_as_index).is_unique
 
-        return result
+        return result_as_index
 
     @final
     def difference(self, other, sort=None):
