@@ -355,7 +355,15 @@ class ExtensionIndex(Index):
 
         return self._data.equals(other._data)
 
-    def take(self: _ExtensionIndexT, indices, axis=0, allow_fill=True, fill_value=None, **kwargs) -> _ExtensionIndexT: ...
+    def take(
+        self: _ExtensionIndexT,
+        indices,
+        axis=0,
+        allow_fill=True,
+        fill_value=None,
+        **kwargs,
+    ) -> _ExtensionIndexT:
+        ...
 
 
 class NDArrayBackedExtensionIndex(ExtensionIndex):

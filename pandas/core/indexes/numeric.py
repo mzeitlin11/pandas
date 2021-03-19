@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import (
     Hashable,
     Optional,
@@ -265,7 +267,10 @@ class Int64Index(IntegerIndex):
     _engine_type = libindex.Int64Engine
     _default_dtype = np.dtype(np.int64)
 
-    def take(self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs) -> Int64Index: ...
+    def take(
+        self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs
+    ) -> Int64Index:
+        ...
 
 
 _uint64_descr_args = {
@@ -298,7 +303,10 @@ class UInt64Index(IntegerIndex):
 
         return com.asarray_tuplesafe(keyarr, dtype=dtype)
 
-    def take(self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs) -> UInt64Index: ...
+    def take(
+        self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs
+    ) -> UInt64Index:
+        ...
 
 
 _float64_descr_args = {
@@ -341,7 +349,10 @@ class Float64Index(NumericIndex):
             return Int64Index(arr, name=self.name)
         return super().astype(dtype, copy=copy)
 
-    def take(self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs) -> Float64Index: ...
+    def take(
+        self, indices, axis=0, allow_fill=True, fill_value=None, **kwargs
+    ) -> Float64Index:
+        ...
 
     # ----------------------------------------------------------------
     # Indexing Methods

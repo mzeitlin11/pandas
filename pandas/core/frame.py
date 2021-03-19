@@ -5953,7 +5953,7 @@ class DataFrame(NDFrame, OpsMixin):
         """
         from pandas._libs.hashtable import duplicated_int64
 
-        if len(self) == 0:
+        if self.empty:
             return self._constructor_sliced(dtype=bool)
 
         def f(vals):

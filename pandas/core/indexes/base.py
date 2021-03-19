@@ -21,7 +21,6 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    overload,
 )
 import warnings
 
@@ -908,7 +907,14 @@ class Index(IndexOpsMixin, PandasObject):
         """
 
     @Appender(_index_shared_docs["take"] % _index_doc_kwargs)
-    def take(self, indices: Union[ArrayLike, Sequence[int]], axis: int = 0, allow_fill: bool = True, fill_value=None, **kwargs) -> Index:
+    def take(
+        self,
+        indices: Union[ArrayLike, Sequence[int]],
+        axis: int = 0,
+        allow_fill: bool = True,
+        fill_value=None,
+        **kwargs,
+    ) -> Index:
         if kwargs:
             nv.validate_take((), kwargs)
         indices_as_array = ensure_platform_int(indices)
@@ -917,7 +923,10 @@ class Index(IndexOpsMixin, PandasObject):
         # Note: we discard fill_value and use self._na_value, only relevant
         #  in the case where allow_fill is True and fill_value is not None
         taken = algos.take(
-            self._values, indices_as_array, allow_fill=allow_fill, fill_value=self._na_value
+            self._values,
+            indices_as_array,
+            allow_fill=allow_fill,
+            fill_value=self._na_value,
         )
         return type(self)._simple_new(taken, name=self.name)
 
@@ -3092,9 +3101,10 @@ class Index(IndexOpsMixin, PandasObject):
             indexer, _ = other.get_indexer_non_unique(lvals)
 
         mask = indexer != -1
+        indexer = indexer.take(mask.nonzero()[0])
         # error: Incompatible types in assignment (expression has type
         # "Union[ExtensionArray, ndarray]", variable has type "ndarray")
-        result = other.take(indexer.take(mask.nonzero()[0])).unique()._values  # type: ignore[assignment]
+        result = other.take(indexer).unique()._values
         result = _maybe_try_sort(result, sort)
 
         # Intersection has to be unique

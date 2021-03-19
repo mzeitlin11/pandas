@@ -455,8 +455,13 @@ class CategoricalIndex(NDArrayBackedExtensionIndex, accessor.PandasDelegate):
         # unless we had an initial Categorical to begin with
         # in which case we are going to conform to the passed Categorical
         if is_categorical_dtype(target):
-            new_target_as_categorical = Categorical(np.asarray(new_target), dtype=target.dtype)
-            return type(self)._simple_new(new_target_as_categorical, name=self.name), indexer
+            new_target_as_categorical = Categorical(
+                np.asarray(new_target), dtype=target.dtype
+            )
+            return (
+                type(self)._simple_new(new_target_as_categorical, name=self.name),
+                indexer,
+            )
         else:
             return Index(new_target, name=self.name), indexer
 
