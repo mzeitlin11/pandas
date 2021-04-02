@@ -1276,7 +1276,6 @@ cdef group_cummin_max(groupby_t[:, ::1] out,
         groupby_t val, mval
         groupby_t[:, ::1] accum
         intp_t lab
-        bint val_is_nan
 
     N, K = (<object>values).shape
     accum = np.empty((ngroups, K), dtype=np.asarray(values).dtype, order='C')
