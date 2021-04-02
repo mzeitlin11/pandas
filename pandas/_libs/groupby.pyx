@@ -1256,8 +1256,7 @@ cdef group_cummin_max(groupby_t[:, ::1] out,
     values : np.ndarray[groupby_t, ndim=2]
         Values to take cummin/max of.
     mask : array[uint8_t] or None
-        If not None, indices represent missing values,
-        otherwise the mask will not be used
+        Indices representing missing values,
     labels : np.ndarray[np.intp]
         Labels to group by.
     ngroups : int
@@ -1277,9 +1276,7 @@ cdef group_cummin_max(groupby_t[:, ::1] out,
         groupby_t val, mval
         groupby_t[:, ::1] accum
         intp_t lab
-        bint val_is_nan, use_mask
-
-    use_mask = mask is not None
+        bint val_is_nan
 
     N, K = (<object>values).shape
     accum = np.empty((ngroups, K), dtype=np.asarray(values).dtype, order='C')
@@ -1293,33 +1290,12 @@ cdef group_cummin_max(groupby_t[:, ::1] out,
     with nogil:
         for i in range(N):
             lab = labels[i]
-
             if lab < 0:
                 continue
+
             for j in range(K):
-                val_is_nan = False
-
-                if use_mask:
-                    if mask[i, j]:
-
-                        # `out` does not need to be set since it
-                        # will be masked anyway
-                        val_is_nan = True
-                    else:
-
-                        # If using the mask, we can avoid grabbing the
-                        # value unless necessary
-                        val = values[i, j]
-
-                # Otherwise, `out` must be set accordingly if the
-                # value is missing
-                else:
+                if not mask[i, j]:
                     val = values[i, j]
-                    if _treat_as_na(val, is_datetimelike):
-                        val_is_nan = True
-                        out[i, j] = val
-
-                if not val_is_nan:
                     mval = accum[lab, j]
                     if compute_max:
                         if val > mval:

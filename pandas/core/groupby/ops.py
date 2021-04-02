@@ -575,7 +575,14 @@ class BaseGrouper:
 
     @final
     def _ea_wrap_cython_operation(
-        self, kind: str, values, how: str, axis: int, min_count: int = -1, **kwargs
+        self,
+        kind: str,
+        values,
+        how: str,
+        axis: int,
+        min_count: int = -1,
+        mask: np.ndarray | None = None,
+        **kwargs,
     ) -> ArrayLike:
         """
         If we have an ExtensionArray, unwrap, call _cython_operation, and
@@ -589,7 +596,7 @@ class BaseGrouper:
             #  operate on the tz-naive equivalents
             values = values.view("M8[ns]")
             res_values = self._cython_operation(
-                kind, values, how, axis, min_count, **kwargs
+                kind, values, how, axis, min_count, mask=mask, **kwargs
             )
             if how in ["rank"]:
                 # preserve float64 dtype
@@ -603,7 +610,7 @@ class BaseGrouper:
             # IntegerArray or BooleanArray
             values = ensure_int_or_float(values)
             res_values = self._cython_operation(
-                kind, values, how, axis, min_count, **kwargs
+                kind, values, how, axis, min_count, mask=mask, **kwargs
             )
             dtype = maybe_cast_result_dtype(orig_values.dtype, how)
             if isinstance(dtype, ExtensionDtype):
@@ -616,7 +623,7 @@ class BaseGrouper:
             # FloatingArray
             values = values.to_numpy(values.dtype.numpy_dtype, na_value=np.nan)
             res_values = self._cython_operation(
-                kind, values, how, axis, min_count, **kwargs
+                kind, values, how, axis, min_count, mask=mask, **kwargs
             )
             result = type(orig_values)._from_sequence(res_values)
             return result
@@ -632,7 +639,8 @@ class BaseGrouper:
         values: BaseMaskedArray,
         how: str,
         axis: int,
-        min_count: int = -1,
+        min_count: int,
+        mask: np.ndarray,
         **kwargs,
     ) -> BaseMaskedArray:
         """
@@ -641,9 +649,6 @@ class BaseGrouper:
         """
         orig_values = values
 
-        # isna just directly returns self._mask, so copy here to prevent
-        # modifying the original
-        mask = isna(values).copy()
         arr = values._data
 
         if is_integer_dtype(values.dtype) or is_bool_dtype(values.dtype):
@@ -658,7 +663,7 @@ class BaseGrouper:
         cls = dtype.construct_array_type()
 
         return cls(
-            res_values.astype(dtype.type, copy=False), mask.astype(bool, copy=False)
+            res_values.astype(dtype.type, copy=False), mask.astype(bool, copy=True)
         )
 
     @final
@@ -695,14 +700,20 @@ class BaseGrouper:
         cy_op.disallow_invalid_ops(dtype, is_numeric)
 
         func_uses_mask = cy_op.uses_mask()
+
+        # Only compute the mask if we haven't yet
+        if func_uses_mask and mask is None:
+            mask = isna(values)
+
         if is_extension_array_dtype(dtype):
             if isinstance(values, BaseMaskedArray) and func_uses_mask:
+                assert mask is not None
                 return self._masked_ea_wrap_cython_operation(
-                    kind, values, how, axis, min_count, **kwargs
+                    kind, values, how, axis, min_count, mask=mask, **kwargs
                 )
             else:
                 return self._ea_wrap_cython_operation(
-                    kind, values, how, axis, min_count, **kwargs
+                    kind, values, how, axis, min_count, mask=mask, **kwargs
                 )
 
         elif values.ndim == 1:
