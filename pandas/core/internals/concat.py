@@ -327,6 +327,7 @@ class JoinUnit:
             indexers = {}
         self.block = block
         self.indexers = indexers
+        self.indexers_have_missing = {}
         self.shape = shape
 
     def __repr__(self) -> str:
@@ -334,10 +335,13 @@ class JoinUnit:
 
     @cache_readonly
     def needs_filling(self) -> bool:
-        for indexer in self.indexers.values():
-            # FIXME: cache results of indexer == -1 checks.
-            if (indexer == -1).any():
-                return True
+        for axis, indexer in self.indexers.items():
+            if axis in self.indexers_have_missing:
+                return self.indexers_have_missing[axis]
+            else:
+                has_missing = (indexer == -1).any()
+                self.indexers_have_missing[axis] = has_missing
+                return has_missing
 
         return False
 
@@ -399,7 +403,6 @@ class JoinUnit:
     def get_reindexed_values(self, empty_dtype: DtypeObj, upcasted_na) -> ArrayLike:
         if upcasted_na is None:
             # No upcasting is necessary
-            fill_value = self.block.fill_value
             values = self.block.get_values()
         else:
             fill_value = upcasted_na
@@ -463,7 +466,14 @@ class JoinUnit:
 
         else:
             for ax, indexer in self.indexers.items():
-                values = algos.take_nd(values, indexer, axis=ax)
+                confirmed_no_missing = not self.indexers_have_missing.get(ax, True)
+
+                # If we've confirmed the indexer has no -1 present, can use the
+                # faster pure numpy take which doesn't include -1 checks
+                if confirmed_no_missing:
+                    values = values.take(indexer, axis=ax)
+                else:
+                    values = algos.take_nd(values, indexer, axis=ax)
 
         return values
 
