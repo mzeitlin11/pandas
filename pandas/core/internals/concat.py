@@ -341,7 +341,8 @@ class JoinUnit:
             else:
                 has_missing = (indexer == -1).any()
                 self.indexers_have_missing[axis] = has_missing
-                return has_missing
+                if has_missing:
+                    return True
 
         return False
 
