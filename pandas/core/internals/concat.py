@@ -337,12 +337,13 @@ class JoinUnit:
     def needs_filling(self) -> bool:
         for axis, indexer in self.indexers.items():
             if axis in self.indexers_have_missing:
-                return self.indexers_have_missing[axis]
+                has_missing = self.indexers_have_missing[axis]
             else:
                 has_missing = (indexer == -1).any()
                 self.indexers_have_missing[axis] = has_missing
-                if has_missing:
-                    return True
+
+            if has_missing:
+                return True
 
         return False
 
@@ -469,12 +470,10 @@ class JoinUnit:
             for ax, indexer in self.indexers.items():
                 confirmed_no_missing = not self.indexers_have_missing.get(ax, True)
 
-                # If we've confirmed the indexer has no -1 present, can use the
-                # faster pure numpy take which doesn't include -1 checks
-                if confirmed_no_missing:
-                    values = values.take(indexer, axis=ax)
-                else:
-                    values = algos.take_nd(values, indexer, axis=ax)
+                # If we've confirmed the indexer has no -1 present, pass allow_fill
+                # to avoid further mask checks and use the faster numpy take
+                allow_fill = not confirmed_no_missing
+                values = algos.take_nd(values, indexer, axis=ax, allow_fill=allow_fill)
 
         return values
 

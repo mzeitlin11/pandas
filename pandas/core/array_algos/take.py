@@ -89,7 +89,7 @@ def take_nd(
     subarray : np.ndarray or ExtensionArray
         May be the same type as the input, or cast to an ndarray.
     """
-    if fill_value is lib.no_default:
+    if fill_value is lib.no_default and allow_fill:
         fill_value = na_value_for_dtype(arr.dtype, compat=False)
 
     if not isinstance(arr, np.ndarray):
@@ -148,10 +148,13 @@ def _take_nd_ndarray(
     else:
         out = np.empty(out_shape, dtype=dtype)
 
-    func = _get_take_nd_function(
-        arr.ndim, arr.dtype, out.dtype, axis=axis, mask_info=mask_info
-    )
-    func(arr, indexer, out, fill_value)
+    if not allow_fill:
+        np.take(arr, indexer, axis=axis, out=out)
+    else:
+        func = _get_take_nd_function(
+            arr.ndim, arr.dtype, out.dtype, axis=axis, mask_info=mask_info
+        )
+        func(arr, indexer, out, fill_value)
 
     if flip_order:
         out = out.T
